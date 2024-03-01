@@ -1,8 +1,7 @@
 const mongoose = require("mongoose");
 
-const DriverLocation = new mongoose.Schema(
+const CustomerLocationSchema = new mongoose.Schema(
   {
-    name: { type: String, required: true },
     latitude: {
       type: Number,
       required: true,
@@ -15,18 +14,14 @@ const DriverLocation = new mongoose.Schema(
       min: -180,
       max: 180,
     },
-    startTiming: {
-      type: String,
-      required: true,
-    },
-    endTiming: {
+    Timing: {
       type: String,
       required: true,
     },
   },
   {
-    collection: "LocationDrivers",
+    collection: "LocationCustomer",
   }
 );
 
-module.exports = mongoose.model("LocationDrivers", DriverLocation);
+module.exports = mongoose.model("LocationCustomer", CustomerLocationSchema);

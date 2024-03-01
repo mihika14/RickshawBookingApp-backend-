@@ -6,6 +6,7 @@ const bcrypt = require("bcrypt");
 const cors = require("cors");
 app.use(cors());
 require("dotenv").config();
+const JWT_SECRET = process.env.JWT_SECRET
 
 mongoose
   .connect(process.env.MONGO_URL, {
@@ -59,33 +60,142 @@ app.post("/logindriver", async (req, res) => {
   }
 });
 
+app.get("/driverdetails", async (req, res) => {
+  try {
+    const driverDetails = await DriverData.find();
+
+    res.json(driverDetails);
+  } catch (error) {
+    console.error("Error fetching Driver detatils:", error);
+    res
+      .status(500)
+      .json({ status: "error", message: "Failed to fetch Driver details" });
+  }
+});
+
 require("./models/DriverLocation");
 const DriverCoordinatesTime = mongoose.model("LocationDrivers");
 
 app.post("/driverlocationandtime", async (req, res) => {
-    try {
-      const { latitude, longitude, startTiming, endTiming } = req.body;
-      const newLocationTime = new DriverCoordinatesTime({
-        latitude,
-        longitude,
-        startTiming,
-        endTiming
-      });
-
-      await newLocationTime.save();
-  
-      res.json({ status: "ok", message: "Location and timings stored successfully" });
-    } catch (error) {
-      console.error("Error storing location and timings:", error);
-      res.status(500).json({ status: "error", message: "Failed to store location and timings" });
-    }
-  });
-  
-app.get("/fetchlocation", async (req, res) => {
   try {
-    const coordinates = await DriverCoordinates.find();
+    const { name,latitude, longitude, startTiming, endTiming } = req.body;
+    const newLocationTime = new DriverCoordinatesTime({
+      name,
+      latitude,
+      longitude,
+      startTiming,
+      endTiming,
+    });
 
-    res.json(coordinates);
+    await newLocationTime.save();
+
+    res.json({
+      status: "ok",
+      message: "Location and timings stored successfully",
+    });
+  } catch (error) {
+    console.error("Error storing location and timings:", error);
+    res
+      .status(500)
+      .json({
+        status: "error",
+        message: "Failed to store location and timings",
+      });
+  }
+});
+
+app.get("/fetchdriverlocationTime", async (req, res) => {
+  try {
+    const coordinatesTime = await DriverCoordinatesTime.find();
+
+    res.json(coordinatesTime);
+  } catch (error) {
+    console.error("Error fetching coordinates:", error);
+    res
+      .status(500)
+      .json({ status: "error", message: "Failed to fetch coordinates" });
+  }
+});
+
+
+require("./models/CustomerData");
+const CustomerData = mongoose.model("RegisteredCustomers");
+
+app.post("/registeruser", async (req, res) => {
+  const { name, email, password } = req.body;
+  try {
+    if (!password) {
+      return res.status(400).json({ error: "Password is required" });
+    }
+
+    const oldUser = await CustomerData.findOne({ email });
+    if (oldUser) {
+      return res.status(409).json({ error: "User already exists" });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    await CustomerData.create({
+      name,
+      email,
+      password: hashedPassword,
+    });
+
+    res.status(201).json({ status: "ok" });
+  } catch (error) {
+    console.error("Error:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+
+app.post("/loginuser", async (req, res) => {
+  const { email, password } = req.body;
+  const customer = await CustomerData.findOne({ email });
+  if (!customer) {
+    return res.json({ error: "User not found" });
+  }
+
+  const isPasswordValid = await bcrypt.compare(password, customer.password);
+  if (isPasswordValid) {
+    const token = jwt.sign({ customerId: CustomerData._id }, JWT_SECRET);
+    return res.status(201).json({ status: "ok", token });
+  }
+});
+
+require("./models/CustomerLocation");
+const CustomerCoordinatesTime = mongoose.model("LocationCustomer");
+
+app.post('/customerlocationTime' , async(req,res)=> {
+  try {
+  const { latitude, longitude, Timing } = req.body;
+  const CustomernewLocationTime = new CustomerCoordinatesTime({
+    latitude,
+    longitude,
+    Timing,
+  });
+
+  await CustomernewLocationTime.save();
+
+  res.json({
+    status: "ok",
+    message: "Location and timings stored successfully",
+  });
+} catch (error) {
+  console.error("Error storing location and timings:", error);
+  res
+    .status(500)
+    .json({
+      status: "error",
+      message: "Failed to store location and timings",
+    });
+}
+});
+
+app.get("/fetchCustomerLocation", async (req, res) => {
+  try {
+    const CustomercoordinatesTime = await CustomerCoordinatesTime.find();
+
+    res.json(CustomercoordinatesTime);
   } catch (error) {
     console.error("Error fetching coordinates:", error);
     res
